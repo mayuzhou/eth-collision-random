@@ -15,7 +15,7 @@ const ERR_FILENAME = `err-${FILE_PREFIX}.txt`;
 
 let noCount = readCounterFromFile(NO_FILENAME);
 let errCount = readCounterFromFile(ERR_FILENAME);
-
+let count = 0;
 function createRandomWallet() {
     return ethers.Wallet.createRandom();
 }
@@ -34,6 +34,7 @@ async function fetchBalancesForAddresses(privateKeys, addresses) {
           noCount++;
           updateCounterFile(NO_FILENAME, noCount);
         } else {
+            console.log("writeToFile YES_FILENAME")
           writeToFile(privateKeys[index], account, balance, YES_FILENAME);
         }
       });
@@ -43,8 +44,10 @@ async function fetchBalancesForAddresses(privateKeys, addresses) {
     }
 
   } catch (error) {
-    console.error("Failed to fetch balances:", error.message);
+    console.error("Failed to fetch balances and retry:", count, error.message);
+    return false;
   }
+  return true;
 }
 
 function writeToFile(privateKey, address, balance, filename) {
@@ -66,12 +69,18 @@ function updateCounterFile(filename, count) {
     fs.writeFileSync(filename, count.toString());
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function checkBalancesForMultipleAddresses() {
     const wallets = Array.from({ length: 20 }, createRandomWallet);
     const privateKeys = wallets.map(wallet => wallet.privateKey);
     const addresses = wallets.map(wallet => wallet.address);
-
-    fetchBalancesForAddresses(privateKeys, addresses);
+    count++;
+    while(!fetchBalancesForAddresses(privateKeys, addresses)) {
+       sleep(1000);
+    }
 }
 
 setInterval(checkBalancesForMultipleAddresses, 1000);
